@@ -78,6 +78,18 @@ Reply to your last posted status:
 tusk -R "Adding to my previous thought..."
 ```
 
+Interactive TUI to select which post to reply to:
+
+```bash
+tusk --reply-tui "This is my reply"
+```
+
+In reply-tui mode:
+- Use arrow keys or `j`/`k` to navigate
+- Press `enter` or `space` to select the post to reply to
+- Press `s` to sync latest posts from Mastodon
+- Press `q` to quit without selecting
+
 ### Image Uploads
 
 Attach an image to your post:
@@ -99,7 +111,7 @@ tusk -i photo.jpg "My photo"
 # You'll get a warning and can choose to proceed or cancel
 ```
 
-### Visibility and Content Warnings
+### Visibility, Content Warnings, and Language
 
 Post with custom visibility:
 
@@ -114,11 +126,66 @@ Add a content warning:
 tusk -w "politics" "Here's my take on..."
 ```
 
+Specify the language of your post (using ISO 639 language codes):
+
+```bash
+tusk -l es "¡Hola mundo!"
+tusk -l ja "こんにちは"
+tusk -l fr "Bonjour le monde!"
+```
+
 Combine options:
 
 ```bash
 tusk -v unlisted -w "food" "I made the best sandwich today!"
+tusk -l de -v unlisted "Ein Post auf Deutsch"
 ```
+
+### Editing
+
+Edit a specific status by ID:
+
+```bash
+tusk edit STATUS_ID "Updated text"
+```
+
+Edit your most recent post:
+
+```bash
+tusk edit --latest "Updated text"
+```
+
+Interactive TUI selection mode:
+
+```bash
+tusk edit --tui "Updated text"
+```
+
+Edit with $EDITOR:
+
+```bash
+tusk edit STATUS_ID -e
+tusk edit --latest -e
+```
+
+Pipe content to edit:
+
+```bash
+echo "Updated content" | tusk edit STATUS_ID
+```
+
+Edit with all posting flags:
+
+```bash
+tusk edit STATUS_ID -v unlisted -w "updated cw" --lang es "Texto actualizado"
+tusk edit --latest -i new_image.jpg --alt "New image description" "Updated with new image"
+```
+
+In edit TUI mode:
+- Use arrow keys or `j`/`k` to navigate
+- Press `enter` or `space` to select the post to edit
+- Press `s` to sync latest posts from Mastodon
+- Press `q` to quit
 
 ### Deleting
 
@@ -141,9 +208,30 @@ tusk delete STATUS_ID -f
 tusk delete --latest -f
 ```
 
+Interactive TUI selection mode:
+
+```bash
+tusk delete --tui
+```
+
+In delete TUI mode:
+- Use arrow keys or `j`/`k` to navigate
+- Press `space` to toggle selection
+- Press `s` to sync latest posts from Mastodon
+- Press `d` to delete selected posts (with confirmation)
+- Press `q` to quit
+
 ### Post History
 
 Tusk maintains a stack of your posted statuses. When you delete a post, it's removed from the stack, and `-R` and `delete --latest` will then operate on the next most recent post.
+
+View your latest post:
+
+```bash
+tusk latest
+```
+
+This shows the post that `-R` (reply to last) and `delete --latest` would operate on.
 
 Sync your recent posts from Mastodon to local history:
 

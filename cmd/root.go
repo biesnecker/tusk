@@ -27,7 +27,9 @@ func init() {
 	// Add all subcommands
 	rootCmd.AddCommand(authCmd)
 	rootCmd.AddCommand(postCmd)
+	rootCmd.AddCommand(editCmd)
 	rootCmd.AddCommand(deleteCmd)
+	rootCmd.AddCommand(latestCmd)
 	rootCmd.AddCommand(syncCmd)
 	rootCmd.AddCommand(clearCmd)
 	rootCmd.AddCommand(logoutCmd)
@@ -35,9 +37,11 @@ func init() {
 	// Add post command flags to root command so they work without "post"
 	rootCmd.Flags().StringVarP(&replyTo, "reply", "r", "", "Reply to a specific status ID")
 	rootCmd.Flags().BoolVarP(&replyLast, "reply-last", "R", false, "Reply to the last posted status")
+	rootCmd.Flags().BoolVar(&replyTUI, "reply-tui", false, "Interactive TUI to select post to reply to")
 	rootCmd.Flags().BoolVarP(&useEditor, "editor", "e", false, "Compose post in $EDITOR")
 	rootCmd.Flags().StringVarP(&visibility, "visibility", "v", "public", "Post visibility (public, unlisted, private, direct)")
 	rootCmd.Flags().StringVarP(&contentWarn, "cw", "w", "", "Content warning / spoiler text")
+	rootCmd.Flags().StringVarP(&language, "lang", "l", "", "ISO 639 language code (e.g., en, es, fr, de, ja)")
 	rootCmd.Flags().StringVarP(&imagePath, "image", "i", "", "Path to image file to attach")
 	rootCmd.Flags().StringVar(&altText, "alt", "", "Alt text for the image")
 	rootCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be posted without actually posting")

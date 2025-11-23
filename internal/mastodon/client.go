@@ -22,11 +22,12 @@ type App struct {
 }
 
 type Status struct {
-	ID        string `json:"id"`
-	URI       string `json:"uri"`
-	URL       string `json:"url"`
-	Content   string `json:"content"`
-	InReplyTo string `json:"in_reply_to_id"`
+	ID               string             `json:"id"`
+	URI              string             `json:"uri"`
+	URL              string             `json:"url"`
+	Content          string             `json:"content"`
+	InReplyTo        string             `json:"in_reply_to_id"`
+	MediaAttachments []*MediaAttachment `json:"media_attachments"`
 }
 
 type MediaAttachment struct {
@@ -43,6 +44,7 @@ type StatusParams struct {
 	Visibility  string
 	SpoilerText string
 	MediaIDs    []string
+	Language    string
 }
 
 func NewClient(baseURL, accessToken string) *Client {
@@ -142,6 +144,10 @@ func (c *Client) PostStatus(params StatusParams) (*Status, error) {
 
 	if len(params.MediaIDs) > 0 {
 		payload["media_ids"] = params.MediaIDs
+	}
+
+	if params.Language != "" {
+		payload["language"] = params.Language
 	}
 
 	jsonData, err := json.Marshal(payload)
@@ -262,6 +268,61 @@ func (c *Client) GetAccountStatuses(limit int) ([]*Status, error) {
 	}
 
 	return statuses, nil
+}
+
+func (c *Client) EditStatus(id string, params StatusParams) (*Status, error) {
+	endpoint := fmt.Sprintf("%s/api/v1/statuses/%s", c.BaseURL, id)
+
+	payload := map[string]interface{}{
+		"status": params.Status,
+	}
+
+	if params.Visibility != "" {
+		payload["visibility"] = params.Visibility
+	}
+
+	if params.SpoilerText != "" {
+		payload["spoiler_text"] = params.SpoilerText
+	}
+
+	if len(params.MediaIDs) > 0 {
+		payload["media_ids"] = params.MediaIDs
+	}
+
+	if params.Language != "" {
+		payload["language"] = params.Language
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal status: %w", err)
+	}
+
+	req, err := http.NewRequest("PUT", endpoint, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+c.AccessToken)
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to edit status: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("failed to edit status: %s (status %d)", string(body), resp.StatusCode)
+	}
+
+	var status Status
+	if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
+		return nil, fmt.Errorf("failed to decode status response: %w", err)
+	}
+
+	return &status, nil
 }
 
 func (c *Client) DeleteStatus(id string) error {
