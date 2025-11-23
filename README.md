@@ -76,6 +76,27 @@ Reply to your last posted status:
 tusk post -R "Adding to my previous thought..."
 ```
 
+### Image Uploads
+
+Attach an image to your post:
+
+```bash
+tusk post -i /path/to/image.jpg --alt "Description of image" "Check out this photo!"
+```
+
+**Features:**
+- **HEIC Support**: HEIC/HEIF images are automatically converted to JPG
+- **EXIF Stripping**: All EXIF metadata is automatically removed for privacy
+- **Alt Text**: You'll be prompted with a warning if you forget alt text (recommended for accessibility)
+- **Supported formats**: JPG, PNG, HEIC/HEIF
+
+Post without alt text (not recommended):
+
+```bash
+tusk post -i photo.jpg "My photo"
+# You'll get a warning and can choose to proceed or cancel
+```
+
 ### Visibility and Content Warnings
 
 Post with custom visibility:

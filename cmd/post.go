@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"biesnecker.com/tusk/internal/config"
+	"biesnecker.com/tusk/internal/image"
 	"biesnecker.com/tusk/internal/mastodon"
 	"biesnecker.com/tusk/internal/output"
 	"github.com/mattn/go-isatty"
@@ -25,6 +26,8 @@ var (
 	visibility   string
 	contentWarn  string
 	dryRun       bool
+	imagePath    string
+	altText      string
 )
 
 var postCmd = &cobra.Command{
@@ -52,6 +55,8 @@ func init() {
 	postCmd.Flags().BoolVarP(&useEditor, "editor", "e", false, "Compose post in $EDITOR")
 	postCmd.Flags().StringVarP(&visibility, "visibility", "v", "public", "Post visibility (public, unlisted, private, direct)")
 	postCmd.Flags().StringVarP(&contentWarn, "cw", "w", "", "Content warning / spoiler text")
+	postCmd.Flags().StringVarP(&imagePath, "image", "i", "", "Path to image file to attach")
+	postCmd.Flags().StringVar(&altText, "alt", "", "Alt text for the image")
 	postCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be posted without actually posting")
 }
 
@@ -117,11 +122,51 @@ func runPost(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// Handle image upload
+	var mediaIDs []string
+	if imagePath != "" {
+		// Check for alt text
+		if altText == "" {
+			output.Prompt("Warning: No alt text provided for image. Continue without alt text? (y/N): ")
+			reader := bufio.NewReader(os.Stdin)
+			response, _ := reader.ReadString('\n')
+			response = strings.TrimSpace(strings.ToLower(response))
+
+			if response != "y" && response != "yes" {
+				output.Info("Post cancelled. Please add --alt \"your alt text\" and try again.")
+				return nil
+			}
+		}
+
+		// Process the image (convert HEIC, strip EXIF)
+		output.Info("Processing image...")
+		processedImage, err := image.ProcessImage(imagePath)
+		if err != nil {
+			return fmt.Errorf("failed to process image: %w", err)
+		}
+
+		// Upload the image
+		output.Info("Uploading image...")
+		media, err := client.UploadMedia(
+			processedImage.Data,
+			processedImage.Filename,
+			processedImage.MimeType,
+			altText,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to upload image: %w", err)
+		}
+
+		mediaIDs = []string{media.ID}
+		output.Info("Image uploaded successfully")
+	}
+
 	params := mastodon.StatusParams{
 		Status:      statusText,
 		InReplyToID: inReplyToID,
 		Visibility:  visibility,
 		SpoilerText: contentWarn,
+		MediaIDs:    mediaIDs,
 	}
 
 	if dryRun {
@@ -133,6 +178,12 @@ func runPost(cmd *cobra.Command, args []string) error {
 		output.Plain("Visibility: %s", visibility)
 		if contentWarn != "" {
 			output.Plain("Content warning: %s", contentWarn)
+		}
+		if imagePath != "" {
+			output.Plain("Image: %s", imagePath)
+			if altText != "" {
+				output.Plain("Alt text: %s", altText)
+			}
 		}
 		return nil
 	}

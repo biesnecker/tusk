@@ -267,6 +267,61 @@ func TestGetStatus(t *testing.T) {
 	}
 }
 
+func TestUploadMedia(t *testing.T) {
+	expectedMedia := &MediaAttachment{
+		ID:          "media123",
+		Type:        "image",
+		URL:         "https://example.com/media/image.jpg",
+		PreviewURL:  "https://example.com/media/preview.jpg",
+		Description: "Test alt text",
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v2/media" {
+			t.Errorf("Expected path /api/v2/media, got %s", r.URL.Path)
+		}
+
+		if r.Method != "POST" {
+			t.Errorf("Expected POST method, got %s", r.Method)
+		}
+
+		authHeader := r.Header.Get("Authorization")
+		if authHeader != "Bearer test_token" {
+			t.Errorf("Expected Authorization header 'Bearer test_token', got %q", authHeader)
+		}
+
+		// Parse multipart form
+		if err := r.ParseMultipartForm(10 << 20); err != nil {
+			t.Fatalf("Failed to parse multipart form: %v", err)
+		}
+
+		description := r.FormValue("description")
+		if description != "Test alt text" {
+			t.Errorf("Expected description 'Test alt text', got %q", description)
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(expectedMedia)
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "test_token")
+	testData := []byte("test image data")
+	media, err := client.UploadMedia(testData, "test.jpg", "image/jpeg", "Test alt text")
+
+	if err != nil {
+		t.Fatalf("Failed to upload media: %v", err)
+	}
+
+	if media.ID != expectedMedia.ID {
+		t.Errorf("Expected ID %q, got %q", expectedMedia.ID, media.ID)
+	}
+
+	if media.Description != expectedMedia.Description {
+		t.Errorf("Expected description %q, got %q", expectedMedia.Description, media.Description)
+	}
+}
+
 func TestDeleteStatus(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v1/statuses/123456" {

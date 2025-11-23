@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 )
@@ -28,11 +29,20 @@ type Status struct {
 	InReplyTo string `json:"in_reply_to_id"`
 }
 
+type MediaAttachment struct {
+	ID          string `json:"id"`
+	Type        string `json:"type"`
+	URL         string `json:"url"`
+	PreviewURL  string `json:"preview_url"`
+	Description string `json:"description"`
+}
+
 type StatusParams struct {
 	Status      string
 	InReplyToID string
 	Visibility  string
 	SpoilerText string
+	MediaIDs    []string
 }
 
 func NewClient(baseURL, accessToken string) *Client {
@@ -130,6 +140,10 @@ func (c *Client) PostStatus(params StatusParams) (*Status, error) {
 		payload["spoiler_text"] = params.SpoilerText
 	}
 
+	if len(params.MediaIDs) > 0 {
+		payload["media_ids"] = params.MediaIDs
+	}
+
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal status: %w", err)
@@ -213,6 +227,60 @@ func (c *Client) DeleteStatus(id string) error {
 	}
 
 	return nil
+}
+
+func (c *Client) UploadMedia(fileData []byte, filename, mimeType, description string) (*MediaAttachment, error) {
+	endpoint := fmt.Sprintf("%s/api/v2/media", c.BaseURL)
+
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+
+	// Add the file
+	part, err := writer.CreateFormFile("file", filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create form file: %w", err)
+	}
+
+	if _, err := part.Write(fileData); err != nil {
+		return nil, fmt.Errorf("failed to write file data: %w", err)
+	}
+
+	// Add description if provided
+	if description != "" {
+		if err := writer.WriteField("description", description); err != nil {
+			return nil, fmt.Errorf("failed to write description field: %w", err)
+		}
+	}
+
+	if err := writer.Close(); err != nil {
+		return nil, fmt.Errorf("failed to close multipart writer: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", endpoint, &buf)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set("Authorization", "Bearer "+c.AccessToken)
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to upload media: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("failed to upload media: %s (status %d)", string(body), resp.StatusCode)
+	}
+
+	var media MediaAttachment
+	if err := json.NewDecoder(resp.Body).Decode(&media); err != nil {
+		return nil, fmt.Errorf("failed to decode media response: %w", err)
+	}
+
+	return &media, nil
 }
 
 func (c *Client) RevokeToken(clientID, clientSecret string) error {
