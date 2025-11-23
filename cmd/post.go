@@ -17,17 +17,14 @@ import (
 )
 
 var (
-	replyTo      string
-	replyLast    bool
-	deleteID     string
-	deleteLast   bool
-	forceDelete  bool
-	useEditor    bool
-	visibility   string
-	contentWarn  string
-	dryRun       bool
-	imagePath    string
-	altText      string
+	replyTo     string
+	replyLast   bool
+	useEditor   bool
+	visibility  string
+	contentWarn string
+	dryRun      bool
+	imagePath   string
+	altText     string
 )
 
 var postCmd = &cobra.Command{
@@ -40,18 +37,13 @@ Examples:
   tusk post -e
   echo "Hello" | tusk post
   tusk post -r STATUS_ID "This is a reply"
-  tusk post -R "Reply to last post"
-  tusk post -d STATUS_ID
-  tusk post -D`,
+  tusk post -R "Reply to last post"`,
 	RunE: runPost,
 }
 
 func init() {
 	postCmd.Flags().StringVarP(&replyTo, "reply", "r", "", "Reply to a specific status ID")
 	postCmd.Flags().BoolVarP(&replyLast, "reply-last", "R", false, "Reply to the last posted status")
-	postCmd.Flags().StringVarP(&deleteID, "delete", "d", "", "Delete a status by ID")
-	postCmd.Flags().BoolVarP(&deleteLast, "delete-last", "D", false, "Delete the last posted status")
-	postCmd.Flags().BoolVarP(&forceDelete, "force", "f", false, "Skip confirmation when deleting")
 	postCmd.Flags().BoolVarP(&useEditor, "editor", "e", false, "Compose post in $EDITOR")
 	postCmd.Flags().StringVarP(&visibility, "visibility", "v", "public", "Post visibility (public, unlisted, private, direct)")
 	postCmd.Flags().StringVarP(&contentWarn, "cw", "w", "", "Content warning / spoiler text")
@@ -75,21 +67,6 @@ func runPost(cmd *cobra.Command, args []string) error {
 	}
 
 	client := mastodon.NewClient(domain, accessToken)
-
-	if deleteLast {
-		lastPostID, err := store.GetLastPostID()
-		if err != nil {
-			return fmt.Errorf("failed to get last post ID: %w", err)
-		}
-		if lastPostID == "" {
-			return fmt.Errorf("no posts in history")
-		}
-		return handleDelete(client, store, lastPostID, forceDelete)
-	}
-
-	if deleteID != "" {
-		return handleDelete(client, store, deleteID, forceDelete)
-	}
 
 	statusText, err := getStatusText(args)
 	if err != nil {
@@ -270,30 +247,3 @@ func getTextFromStdin() (string, error) {
 	return strings.TrimSpace(builder.String()), nil
 }
 
-func handleDelete(client *mastodon.Client, store *config.Store, statusID string, force bool) error {
-	if !force {
-		output.Prompt("Are you sure you want to delete status %s? This cannot be undone. (y/N): ", statusID)
-
-		reader := bufio.NewReader(os.Stdin)
-		response, _ := reader.ReadString('\n')
-		response = strings.TrimSpace(strings.ToLower(response))
-
-		if response != "y" && response != "yes" {
-			output.Info("Deletion cancelled.")
-			return nil
-		}
-	}
-
-	output.Info("Deleting status...")
-	if err := client.DeleteStatus(statusID); err != nil {
-		return fmt.Errorf("failed to delete status: %w", err)
-	}
-
-	// Remove from post history
-	if err := store.RemovePostFromHistory(statusID); err != nil {
-		output.Error("Failed to remove post from history: %v", err)
-	}
-
-	output.Success("Status deleted!")
-	return nil
-}

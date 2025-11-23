@@ -43,23 +43,25 @@ You'll be prompted for your instance domain (e.g., `mastodon.social`), and your 
 
 ### Posting
 
-Post a simple status:
+Post a simple status (the `post` command is the default, so you can omit it):
 
 ```bash
+tusk "Hello, Mastodon!"
+# or
 tusk post "Hello, Mastodon!"
 ```
 
 Compose in your editor:
 
 ```bash
-tusk post -e
+tusk -e
 ```
 
 Pipe from stdin:
 
 ```bash
-echo "Hello from the command line" | tusk post
-cat status.txt | tusk post
+echo "Hello from the command line" | tusk
+cat status.txt | tusk
 ```
 
 ### Replies
@@ -67,13 +69,13 @@ cat status.txt | tusk post
 Reply to a specific status:
 
 ```bash
-tusk post -r STATUS_ID "This is a reply"
+tusk -r STATUS_ID "This is a reply"
 ```
 
 Reply to your last posted status:
 
 ```bash
-tusk post -R "Adding to my previous thought..."
+tusk -R "Adding to my previous thought..."
 ```
 
 ### Image Uploads
@@ -81,7 +83,7 @@ tusk post -R "Adding to my previous thought..."
 Attach an image to your post:
 
 ```bash
-tusk post -i /path/to/image.jpg --alt "Description of image" "Check out this photo!"
+tusk -i /path/to/image.jpg --alt "Description of image" "Check out this photo!"
 ```
 
 **Features:**
@@ -93,7 +95,7 @@ tusk post -i /path/to/image.jpg --alt "Description of image" "Check out this pho
 Post without alt text (not recommended):
 
 ```bash
-tusk post -i photo.jpg "My photo"
+tusk -i photo.jpg "My photo"
 # You'll get a warning and can choose to proceed or cancel
 ```
 
@@ -102,20 +104,20 @@ tusk post -i photo.jpg "My photo"
 Post with custom visibility:
 
 ```bash
-tusk post -v unlisted "This won't show in public timeline"
-tusk post -v private "Only followers can see this"
+tusk -v unlisted "This won't show in public timeline"
+tusk -v private "Only followers can see this"
 ```
 
 Add a content warning:
 
 ```bash
-tusk post -w "politics" "Here's my take on..."
+tusk -w "politics" "Here's my take on..."
 ```
 
 Combine options:
 
 ```bash
-tusk post -v unlisted -w "food" "I made the best sandwich today!"
+tusk -v unlisted -w "food" "I made the best sandwich today!"
 ```
 
 ### Deleting
@@ -123,24 +125,37 @@ tusk post -v unlisted -w "food" "I made the best sandwich today!"
 Delete a specific status by ID (with confirmation):
 
 ```bash
-tusk post -d STATUS_ID
+tusk delete STATUS_ID
 ```
 
-Delete your last posted status:
+Delete your most recent post:
 
 ```bash
-tusk post -D
+tusk delete --latest
 ```
 
 Force delete without confirmation:
 
 ```bash
-tusk post -D -f
+tusk delete STATUS_ID -f
+tusk delete --latest -f
 ```
 
 ### Post History
 
-Tusk maintains a stack of your posted statuses. When you delete a post, it's removed from the stack, and `-R` and `-D` will then operate on the next most recent post.
+Tusk maintains a stack of your posted statuses. When you delete a post, it's removed from the stack, and `-R` and `delete --latest` will then operate on the next most recent post.
+
+Sync your recent posts from Mastodon to local history:
+
+```bash
+tusk sync
+```
+
+Sync a specific number of posts (default is 50, max 100):
+
+```bash
+tusk sync -n 100
+```
 
 Clear the post history stack:
 
@@ -159,8 +174,8 @@ tusk clear -f
 Preview what would be posted:
 
 ```bash
-tusk post --dry-run "Test post"
-tusk post -R --dry-run -v unlisted "Reply test"
+tusk --dry-run "Test post"
+tusk -R --dry-run -v unlisted "Reply test"
 ```
 
 ### Logout

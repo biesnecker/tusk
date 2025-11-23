@@ -205,6 +205,65 @@ func (c *Client) GetStatus(id string) (*Status, error) {
 	return &status, nil
 }
 
+func (c *Client) GetAccountStatuses(limit int) ([]*Status, error) {
+	// First get the current user's account ID
+	endpoint := fmt.Sprintf("%s/api/v1/accounts/verify_credentials", c.BaseURL)
+
+	req, err := http.NewRequest("GET", endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+c.AccessToken)
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify credentials: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("failed to verify credentials: %s (status %d)", string(body), resp.StatusCode)
+	}
+
+	var account struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&account); err != nil {
+		return nil, fmt.Errorf("failed to decode account response: %w", err)
+	}
+
+	// Now fetch the user's statuses
+	endpoint = fmt.Sprintf("%s/api/v1/accounts/%s/statuses?limit=%d&exclude_replies=false&exclude_reblogs=true",
+		c.BaseURL, account.ID, limit)
+
+	req, err = http.NewRequest("GET", endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+c.AccessToken)
+
+	resp, err = c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get statuses: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("failed to get statuses: %s (status %d)", string(body), resp.StatusCode)
+	}
+
+	var statuses []*Status
+	if err := json.NewDecoder(resp.Body).Decode(&statuses); err != nil {
+		return nil, fmt.Errorf("failed to decode statuses response: %w", err)
+	}
+
+	return statuses, nil
+}
+
 func (c *Client) DeleteStatus(id string) error {
 	endpoint := fmt.Sprintf("%s/api/v1/statuses/%s", c.BaseURL, id)
 
